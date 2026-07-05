@@ -1,0 +1,215 @@
+{
+  "name": "Daily Tasks",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        -144
+      ],
+      "id": "91851eec-3009-4b56-b627-57bfff412d89",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BdesAKIkuM6EyR-A2pb2N-uBBvrhYyyE5XzCQNPaQSg",
+          "mode": "list",
+          "cachedResultName": "AI Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BdesAKIkuM6EyR-A2pb2N-uBBvrhYyyE5XzCQNPaQSg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BdesAKIkuM6EyR-A2pb2N-uBBvrhYyyE5XzCQNPaQSg/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -144
+      ],
+      "id": "0002ffa5-7184-446f-9461-1f679fd0f8fd",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Gigehnt3RlOUDQWl",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت خبير محترف في إدارة الوقت ورشاقة المشاريع (Agile Project Management).\nتاريخ اليوم هو:{{ $('Schedule Trigger').item.json['Readable date'] }}\n\nأمامك قائمة بالمشاريع الحالية التي أعمل عليها، متضمنة تاريخ النهاية (Deadline) ونسبة إنجازي الحالية في كل مشروع:\n{{ $json['Task/ Project'] }}{{ $json['Start Date'] }}{{ $json['End Date/Deaedline'] }}{{ $json.Progress }}\nالمطلوب منك تحليل البيانات كالتالي قبل وضع الجدول:\n1. احسب الأيام المتبقية حتى تاريخ الـ Deadline لكل مشروع بناءً على تاريخ اليوم.\n2. قارن نسبة الإنجاز بالوقت المتبقي: إذا كان المشروع يقترب من نهايته الزمنية ولكن نسبة الإنجاز فيه منخفضة (متأخر)، قم بإعطائه أولوية قصوى ووقت أطول في جدول اليوم (تكثيف ساعات العمل عليه).\n3. إذا كان المشروع يسير بشكل ممتاز ونسبة إنجازه عالية مقارنة بالوقت المتبقي، حدد له وقتاً عادياً أو خفيفاً للحفاظ على الاستمرارية فقط.\n\nمخرج التقرير لليوم الحالي فقط:\n- ابدأ بتنبيه سريّع لو كان هناك مشروع في \"منطقة الخطر\" ومتأخر.\n- ضع خطة العمل لليوم في نقاط منظمة، مع تحديد اسم المهمة، والوقت المقترح (مثلاً: من 4 لـ 6 مساءً)، مع توضيح سبب تخصيص هذا الوقت (مثال: 'تم زيادة وقت هذه المهمة لأن نسبة الإنجاز متأخرة').\n- اجعل الأسلوب تحفيزياً، صارماً عند الحاجة، وباللغة العربية الفصحى المبسطة.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        -144
+      ],
+      "id": "025d57d9-8a1f-4b7e-b203-dab1c76e095b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        752,
+        80
+      ],
+      "id": "7ebcea29-4ede-4366-8c1d-d751a8305dbb",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fqfWdBVlwMDljqZ1",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Task/ Project"
+            },
+            {
+              "fieldToAggregate": "Start Date"
+            },
+            {
+              "fieldToAggregate": "End Date/Deaedline"
+            },
+            {
+              "fieldToAggregate": "Progress"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -144
+      ],
+      "id": "92ca129b-1c94-440e-b2d1-32799a8f5cba",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "chatId": "1672296395",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        -144
+      ],
+      "id": "f420f402-b146-4d58-8847-915db4c93e14",
+      "name": "Send a text message",
+      "webhookId": "c942997c-5ba3-4571-87e2-64d4ee094902",
+      "credentials": {
+        "telegramApi": {
+          "id": "HBFf6726hNBjIkwo",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "295f59e8-c4f2-4423-be38-3321c42be6c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7991a602b2074564fa3b3cb9d14ea214750a384679674214f67d0ef3d77ce177"
+  },
+  "nodeGroups": [],
+  "id": "nmfUe9CQ353w7lL2",
+  "tags": []
+}
