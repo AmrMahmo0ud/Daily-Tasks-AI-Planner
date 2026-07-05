@@ -1,0 +1,428 @@
+{
+  "name": "Price Mointor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        -96
+      ],
+      "id": "ba8522e3-7d93-45d8-b8db-60b9e955f6ae",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://www.goldapi.io/api/XAU/EGP",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        -96
+      ],
+      "id": "ddb958fc-644a-4e48-a33e-0f4717c727ab",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "B5zumn7Okpy4un2H",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "# 1. سحب السعر الحالي من الـ HTTP Request اللي قبله\n# افتراضاً أن الـ API بيرجع السعر في متغير اسمه price\n\ncurrent_price = _items[0][\"json\"][\"price_at_time\"]\n\n# 2. تحديد السعر المستهدف اللي نفسك تشتري عنده (مثال)\ntarget_price = 5690 \n\nlast_price = _items[0][\"json\"][\"last_price\"]\n\nis_below_target = current_price <= target_price\n\n# 3. حساب نسبة الهبوط\nprice_drop_percentage = 0\nif last_price > current_price:\n    price_drop_percentage = ((last_price - current_price) / last_price) * 100\n\nis_sharp_drop = price_drop_percentage >= 2.0\nshould_trigger = is_below_target or is_sharp_drop\n\nreturn {\n    \"current_price\": current_price,\n    \"last_price\": last_price,\n    \"target_price\": target_price,\n    \"is_below_target\": is_below_target,\n    \"is_sharp_drop\": is_sharp_drop,\n    \"price_drop_percentage\": round(price_drop_percentage, 2),\n    \"should_trigger\": should_trigger\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -96
+      ],
+      "id": "49d691e4-92f4-4ffe-b362-b113e8600357",
+      "name": "Code in Python"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E",
+          "mode": "list",
+          "cachedResultName": "Gold Price Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        656,
+        -96
+      ],
+      "id": "5110e876-33fe-4da3-bf0d-7a05bced0996",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Gigehnt3RlOUDQWl",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3137b412-5cfc-4610-a2d4-aca6213f6664",
+              "leftValue": "={{ $('Code in Python').item.json.should_trigger }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        -96
+      ],
+      "id": "4f627a63-ec3b-4d08-b3d2-3862b480f614",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت مستشار مالي وخبير في تداول الأسواق والذهب. \nأمامك البيانات التالية لحركة السعر الحالية التي قمنا بحسابها بدقة:\n- السعر الحالي: {{ $('Code in Python').item.json.current_price }}\n- السعر المستهدف للشراء: {{ $('Code in Python').item.json.target_price }}\n- هل انخفض السعر تحت المستهدف؟: {{ $('Code in Python').item.json.is_below_target }}\n- هل حدث هبوط مفاجئ وقوي؟: {{ $('Code in Python').item.json.is_sharp_drop }} (بنسبة هبوط: {{ $('Code in Python').item.json.price_drop_percentage }}%)\n\nالمطلوب منك:\nصياغة رسالة تنبيهية عاجلة جداً بالعامية المصرية الودية والمشجعة الموجهة لي لتنبيهي بضرورة الشراء فوراً قبل الارتداد، مع ذكر الأرقام بوضوح وسبب التنبيه (سواء كسر المستهدف أو حدوث هبوط حاد مفاجئ). اجعلها في نقاط قصيرة ومثيرة للحماس.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1536,
+        -96
+      ],
+      "id": "35bb9236-b12c-472f-8744-cf44a4891494",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1616,
+        128
+      ],
+      "id": "9ca9900d-d7f6-4905-a383-02dafe735146",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fqfWdBVlwMDljqZ1",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1672296395",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1888,
+        -96
+      ],
+      "id": "12c71e53-5d2b-4470-8697-cf309763b5eb",
+      "name": "Send a text message",
+      "webhookId": "48880321-8654-4ce4-ada6-981100bc5156",
+      "credentials": {
+        "telegramApi": {
+          "id": "NTpvSnwOjkSiBW39",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E",
+          "mode": "list",
+          "cachedResultName": "Gold Price Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "last_price": "={{ $json.current_price }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "last_price",
+              "displayName": "last_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "price_at_time",
+              "displayName": "price_at_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1088,
+        -96
+      ],
+      "id": "9d0c6664-e5c6-43c5-86ca-2c0e6cf97815",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Gigehnt3RlOUDQWl",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E",
+          "mode": "list",
+          "cachedResultName": "Gold Price Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pMujERYEmzc-rIs-9qarmj5-A58CvB9j4OXnx1Y15E/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "price_at_time": "={{ $json.price_gram_21k }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "last_price",
+              "displayName": "last_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "price_at_time",
+              "displayName": "price_at_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        -96
+      ],
+      "id": "17f4a2c2-980c-4ff7-b8af-cbfaed3f93ee",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Gigehnt3RlOUDQWl",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2de83c16-0e54-49a0-8181-9ae3f5f45f85",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7991a602b2074564fa3b3cb9d14ea214750a384679674214f67d0ef3d77ce177"
+  },
+  "nodeGroups": [],
+  "id": "dIeO9Hh91hy9q8Wd",
+  "tags": []
+}
